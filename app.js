@@ -31,7 +31,9 @@ function getStoredUsers() {
   const defaults = [
     { user: 'admin', pass: 'admin123', name: 'Administrador', initials: 'AD', category: 'admin' },
     { user: 'tens', pass: 'tens2024', name: 'TENS Electro', initials: 'TE', category: 'tens' },
-    { user: 'doctor', pass: 'doc2024', name: 'Dr. Médico', initials: 'DR', category: 'doctor' }
+    { user: 'enfermeria', pass: 'ecg2024', name: 'Enfermería', initials: 'EN', category: 'enfermeria' },
+    { user: 'doctor', pass: 'doc2024', name: 'Dr. Médico', initials: 'DR', category: 'doctor' },
+    { user: 'cardiologo', pass: 'cardio2024', name: 'Dr. Cardiólogo', initials: 'CA', category: 'doctor' }
   ];
   localStorage.setItem('kardial_users', JSON.stringify(defaults));
   return defaults;
