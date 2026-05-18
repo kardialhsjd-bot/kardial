@@ -1,12 +1,7 @@
 {
   "version": 2,
   "name": "kardial",
-  "builds": [
-    {
-      "src": "index.html",
-      "use": "@vercel/static"
-    }
-  ],
+
   "routes": [
     {
       "src": "/(.*)",
