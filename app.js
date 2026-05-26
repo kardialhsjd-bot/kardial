@@ -1374,3 +1374,65 @@ function loadStats() {
   html += '</div>';
   list.innerHTML = html;
 }
+
+// ---- LIGHTBOX & DOWNLOAD ----
+function openLightbox() {
+  const viewer = document.getElementById('docViewer');
+  const lightboxOverlay = document.getElementById('lightboxOverlay');
+  const lightboxInner = document.getElementById('lightboxInner');
+  
+  if (!viewer || !lightboxOverlay || !lightboxInner) return;
+  
+  // Clonar el contenido actual del viewer
+  lightboxInner.innerHTML = '';
+  Array.from(viewer.children).forEach(child => {
+    if (child.tagName === 'CANVAS') {
+      // Re-dibujar el canvas clonando su imagen
+      const newCanvas = document.createElement('canvas');
+      newCanvas.width = child.width;
+      newCanvas.height = child.height;
+      newCanvas.style.cssText = 'width:100%;max-width:1200px;display:block;margin-bottom:12px;border-radius:4px;box-shadow:0 4px 15px rgba(0,0,0,0.5)';
+      newCanvas.getContext('2d').drawImage(child, 0, 0);
+      lightboxInner.appendChild(newCanvas);
+    } else if (child.tagName === 'IMG') {
+      const newImg = document.createElement('img');
+      newImg.src = child.src;
+      newImg.style.cssText = 'width:100%;max-width:1200px;display:block;border-radius:4px;box-shadow:0 4px 15px rgba(0,0,0,0.5)';
+      lightboxInner.appendChild(newImg);
+    }
+  });
+  
+  lightboxOverlay.classList.add('active');
+}
+
+function closeLightbox() {
+  const lightboxOverlay = document.getElementById('lightboxOverlay');
+  if (lightboxOverlay) lightboxOverlay.classList.remove('active');
+}
+
+function downloadOriginalDocument() {
+  if (!window._currentFile) {
+    showNotif('❌ No hay documento original disponible', 'error');
+    return;
+  }
+  
+  const file = window._currentFile;
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url;
+  
+  // Intentar usar un nombre coherente
+  let filename = file.name || 'examen_ecg';
+  const pNombre = document.getElementById('pNombre');
+  const patientName = pNombre ? pNombre.value : '';
+  if (patientName && !filename.toLowerCase().includes(patientName.toLowerCase().replace(/\s/g, '_'))) {
+    const ext = filename.split('.').pop() || 'pdf';
+    filename = `ECG_${patientName.replace(/\s+/g, '_')}.${ext}`;
+  }
+  
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
