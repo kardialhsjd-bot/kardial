@@ -178,12 +178,12 @@
             <span class="tag tag-red">Auto-análisis</span>
           </div>
           <div class="meas-grid">
-            <div class="meas-card"><div class="meas-val" id="mFC">--</div><div class="meas-label">FC (lpm)</div><div class="meas-status" id="sFC">--</div></div>
-            <div class="meas-card"><div class="meas-val" id="mPR">--</div><div class="meas-label">PR (ms)</div><div class="meas-status" id="sPR">--</div></div>
-            <div class="meas-card"><div class="meas-val" id="mQRS">--</div><div class="meas-label">QRS (ms)</div><div class="meas-status" id="sQRS">--</div></div>
-            <div class="meas-card"><div class="meas-val" id="mQT">--</div><div class="meas-label">QT (ms)</div><div class="meas-status" id="sQT">--</div></div>
-            <div class="meas-card"><div class="meas-val" id="mQTc">--</div><div class="meas-label">QTc (ms)</div><div class="meas-status" id="sQTc">--</div></div>
-            <div class="meas-card"><div class="meas-val" id="mEje">--</div><div class="meas-label">Eje QRS</div><div class="meas-status" id="sEje">--</div></div>
+            <div class="meas-card"><input type="text" class="meas-val inp-meas" id="mFC" value="--" onchange="updateMeas('fc', this.value)"/><div class="meas-label">FC (lpm)</div><div class="meas-status" id="sFC">--</div></div>
+            <div class="meas-card"><input type="text" class="meas-val inp-meas" id="mPR" value="--" onchange="updateMeas('pr', this.value)"/><div class="meas-label">PR (ms)</div><div class="meas-status" id="sPR">--</div></div>
+            <div class="meas-card"><input type="text" class="meas-val inp-meas" id="mQRS" value="--" onchange="updateMeas('qrs', this.value)"/><div class="meas-label">QRS (ms)</div><div class="meas-status" id="sQRS">--</div></div>
+            <div class="meas-card"><input type="text" class="meas-val inp-meas" id="mQT" value="--" onchange="updateMeas('qt', this.value)"/><div class="meas-label">QT (ms)</div><div class="meas-status" id="sQT">--</div></div>
+            <div class="meas-card"><input type="text" class="meas-val inp-meas" id="mQTc" value="--" onchange="updateMeas('qtc', this.value)" readonly/><div class="meas-label">QTc (ms)</div><div class="meas-status" id="sQTc">--</div></div>
+            <div class="meas-card"><input type="text" class="meas-val inp-meas" id="mEje" value="--" onchange="updateMeas('eje', this.value)"/><div class="meas-label">Eje QRS</div><div class="meas-status" id="sEje">--</div></div>
           </div>
         </div>
 

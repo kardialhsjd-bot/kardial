@@ -559,13 +559,38 @@ function loadReport(pdfText){
 
 function setMeas(valId, val, statId, type, label){
   const vEl = document.getElementById(valId);
-  if(vEl) vEl.textContent = val;
+  if(vEl) {
+    if(vEl.tagName === 'INPUT') vEl.value = val;
+    else vEl.textContent = val;
+  }
   const el = document.getElementById(statId);
   if(el) {
     el.textContent = label;
     el.className = 'meas-status s-'+type;
   }
 }
+
+window.updateMeas = function(key, val) {
+  if(!currentReport) currentReport = {};
+  val = parseFloat(val) || 0;
+  if(key === 'eje') {
+    currentReport.eje = val;
+    setMeas('mEje', val+'°', 'sEje', 'ok', 'Normal');
+  } else {
+    currentReport[key] = val;
+    const r = currentReport;
+    if(key === 'fc' || key === 'qt') {
+      r.qtc = Math.round(r.qt / Math.sqrt(60/r.fc)) || 0;
+      setMeas('mQTc', r.qtc, 'sQTc', r.qtc<=450?'ok':r.qtc<=500?'warn':'bad', r.qtc<=450?'Normal':r.qtc<=500?'Límite':'Prolongado');
+    }
+    if(key === 'fc') setMeas('mFC', r.fc, 'sFC', r.fc>=60&&r.fc<=100?'ok':r.fc<60?'warn':'bad', r.fc>=60&&r.fc<=100?'Normal':r.fc<60?'Bradicardia':'Taquicardia');
+    if(key === 'pr') setMeas('mPR', r.pr, 'sPR', r.pr>=120&&r.pr<=200?'ok':'bad', r.pr>=120&&r.pr<=200?'Normal':r.pr>200?'Prolongado':'Corto');
+    if(key === 'qrs') setMeas('mQRS', r.qrs, 'sQRS', r.qrs<=120?'ok':'bad', r.qrs<=120?'Normal':'Ensanchado');
+    if(key === 'qt') setMeas('mQT', r.qt, 'sQT', 'ok', 'Normal');
+  }
+  drawECG();
+  autoFillReport();
+};
 
 function drawECG(){
   const r = currentReport||{fc:72};

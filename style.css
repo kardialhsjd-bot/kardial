@@ -101,6 +101,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .meas-card{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:8px;padding:12px 8px;text-align:center;transition:border-color .2s}
 .meas-card:hover{border-color:var(--accent)}
 .meas-val{font-size:22px;font-weight:800;color:var(--accent-light)}
+.inp-meas{background:transparent;border:none;width:100%;text-align:center;font-family:'Inter',sans-serif;color:var(--accent-light);outline:none;border-bottom:1px dashed transparent;transition:border-color .2s;cursor:text}
+.inp-meas:focus,.inp-meas:hover:not([readonly]){border-bottom:1px dashed var(--accent)}
 .meas-label{font-size:11px;color:var(--text-sec);margin:3px 0}
 .meas-status{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;display:inline-block}
 .s-ok{background:rgba(22,163,74,.2);color:#4ade80}
