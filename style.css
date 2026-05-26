@@ -324,3 +324,64 @@ select.inp{cursor:pointer}
   color: var(--accent-light);
   background: rgba(220, 38, 38, 0.05);
 }
+
+/* LIGHTBOX (ZOOM) */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+
+.lightbox-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.lightbox-content {
+  position: relative;
+  width: 95%;
+  height: 95%;
+  background: #fff;
+  border-radius: 12px;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  padding: 20px;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  font-size: 24px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.lightbox-close:hover {
+  background: var(--accent-light);
+}
+
+.lightbox-inner {
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}

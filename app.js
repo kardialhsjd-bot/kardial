@@ -454,10 +454,18 @@ function renderDocument(file){
   if(!file){
     viewer.innerHTML = '<span style="color:var(--text-muted);font-size:13px">Archivo no disponible en el historial</span>';
     if(pagesTag) pagesTag.textContent = '';
+    const zoomBtn = document.getElementById('btnZoomDoc');
+    const dwnBtn = document.getElementById('btnDownloadDoc');
+    if(zoomBtn) zoomBtn.style.display = 'none';
+    if(dwnBtn) dwnBtn.style.display = 'none';
     return;
   }
 
   viewer.innerHTML = '';
+  const zoomBtn = document.getElementById('btnZoomDoc');
+  const dwnBtn = document.getElementById('btnDownloadDoc');
+  if(zoomBtn) zoomBtn.style.display = '';
+  if(dwnBtn) dwnBtn.style.display = '';
 
   if(file.type === 'application/pdf'){
     // Render every page as a stacked canvas — no browser PDF viewer sidebar
