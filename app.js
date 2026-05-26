@@ -450,40 +450,62 @@ function renderDocument(file){
   const viewer = document.getElementById('docViewer');
   const pagesTag = document.getElementById('docPages');
   if(!viewer) return;
-  
-  if(!file) {
+
+  if(!file){
     viewer.innerHTML = '<span style="color:var(--text-muted);font-size:13px">Archivo no disponible en el historial</span>';
     if(pagesTag) pagesTag.textContent = '';
     return;
   }
 
   viewer.innerHTML = '';
-  const url = URL.createObjectURL(file);
 
   if(file.type === 'application/pdf'){
-    const embed = document.createElement('embed');
-    embed.src = url;
-    embed.type = 'application/pdf';
-    embed.style.cssText = 'width:100%;height:520px;border-radius:8px;display:block;border:none';
-    viewer.style.minHeight = '520px';
-    viewer.appendChild(embed);
+    // Render every page as a stacked canvas — no browser PDF viewer sidebar
+    viewer.style.overflowY = 'auto';
+    viewer.style.minHeight = '200px';
+
+    const doRender = async (pdfDoc) => {
+      viewer.innerHTML = '';
+      const total = pdfDoc.numPages;
+      if(pagesTag) pagesTag.textContent = total + (total===1?' página':' páginas');
+      const containerW = viewer.clientWidth || 560;
+      for(let num = 1; num <= total; num++){
+        const page = await pdfDoc.getPage(num);
+        const vp0 = page.getViewport({scale:1});
+        const scale = containerW / vp0.width;
+        const vp = page.getViewport({scale});
+        const canvas = document.createElement('canvas');
+        canvas.width  = vp.width;
+        canvas.height = vp.height;
+        canvas.style.cssText = 'width:100%;display:block;margin-bottom:8px;border-radius:8px;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,0.35)';
+        await page.render({canvasContext: canvas.getContext('2d'), viewport: vp}).promise;
+        viewer.appendChild(canvas);
+      }
+    };
+
     if(_pdfDoc){
-      const n = _pdfDoc.numPages;
-      document.getElementById('docPages').textContent = n + (n===1?' página':' páginas');
+      doRender(_pdfDoc);
     } else {
-      document.getElementById('docPages').textContent = 'PDF';
+      file.arrayBuffer().then(ab => {
+        pdfjsLib.getDocument({data:ab}).promise.then(pdf => {
+          _pdfDoc = pdf; _totalPages = pdf.numPages;
+          doRender(pdf);
+        });
+      });
     }
-    document.getElementById('btnPrevPage').style.display='none';
-    document.getElementById('btnNextPage').style.display='none';
-    document.getElementById('pageIndicator').style.display='none';
+
+    document.getElementById('btnPrevPage').style.display  = 'none';
+    document.getElementById('btnNextPage').style.display  = 'none';
+    document.getElementById('pageIndicator').style.display = 'none';
+
   } else {
     const img = document.createElement('img');
-    img.src = url;
+    img.src = URL.createObjectURL(file);
     img.alt = 'Examen ECG';
     img.style.cssText = 'width:100%;height:auto;display:block;border-radius:8px';
     viewer.style.minHeight = 'auto';
     viewer.appendChild(img);
-    document.getElementById('docPages').textContent = 'Imagen';
+    if(pagesTag) pagesTag.textContent = 'Imagen';
   }
 }
 
