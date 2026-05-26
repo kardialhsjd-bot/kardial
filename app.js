@@ -480,7 +480,9 @@ function renderDocument(file){
       for(let num = 1; num <= total; num++){
         const page = await pdfDoc.getPage(num);
         const vp0 = page.getViewport({scale:1});
-        const scale = containerW / vp0.width;
+        // Aumentar la resolución interna a 2500px para evitar pixelado al hacer zoom
+        const targetWidth = 2500; 
+        const scale = targetWidth / vp0.width;
         const vp = page.getViewport({scale});
         const canvas = document.createElement('canvas');
         canvas.width  = vp.width;
