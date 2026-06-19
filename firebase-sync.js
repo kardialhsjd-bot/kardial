@@ -351,9 +351,10 @@ function updateSyncIndicator(state) {
 // ---- Migrar datos locales a Firebase ----
 async function migrateLocalToFirebase() {
   if (!_firebaseReady) return;
-  if (localStorage.getItem('kardial_migrated') === 'true') return;
+  // REMOVIDO: if (localStorage.getItem('kardial_migrated') === 'true') return;
 
   let migratedAny = false;
+  let totalLocal = 0;
 
   // Migrar pendientes
   const localPending = JSON.parse(localStorage.getItem('kardial_pending') || '[]');
@@ -412,11 +413,16 @@ async function migrateLocalToFirebase() {
     migratedAny = true;
   }
 
+  const localPendingCount = localPending.length;
+  const localReportsCount = localReports.length;
+
   if (migratedAny) {
-    showNotif('✅ Datos locales antiguos sincronizados a la nube');
+    showNotif('✅ Datos locales antiguos sincronizados a la nube (' + localPendingCount + ' pendientes, ' + localReportsCount + ' informados)');
+  } else if (localPendingCount === 0 && localReportsCount === 0) {
+    showNotif('ℹ️ Tu navegador no tiene informes locales guardados para recuperar.', 'info');
   }
   
-  localStorage.setItem('kardial_migrated', 'true');
+  // localStorage.setItem('kardial_migrated', 'true');
 }
 
 // ---- Registrar callbacks de UI ----
