@@ -351,10 +351,13 @@ function updateSyncIndicator(state) {
 // ---- Migrar datos locales a Firebase ----
 async function migrateLocalToFirebase() {
   if (!_firebaseReady) return;
+  if (localStorage.getItem('kardial_migrated') === 'true') return;
+
+  let migratedAny = false;
 
   // Migrar pendientes
   const localPending = JSON.parse(localStorage.getItem('kardial_pending') || '[]');
-  if (localPending.length > 0 && _syncCache.pending.length === 0) {
+  if (localPending.length > 0) {
     console.log('[Sync] Migrando', localPending.length, 'pendientes locales a Firebase...');
     for (const p of localPending) {
       // Intentar obtener el archivo de IndexedDB
@@ -368,12 +371,12 @@ async function migrateLocalToFirebase() {
       }
       await _db.ref('pending/' + p.id).set(p);
     }
-    showNotif('✅ Datos pendientes migrados a la nube');
+    migratedAny = true;
   }
 
   // Migrar reportes
   const localReports = JSON.parse(localStorage.getItem('kardial_reports') || '[]');
-  if (localReports.length > 0 && _syncCache.reports.length === 0) {
+  if (localReports.length > 0) {
     console.log('[Sync] Migrando', localReports.length, 'reportes locales a Firebase...');
     for (const r of localReports) {
       const id = r.id || Date.now() + Math.random();
@@ -388,26 +391,32 @@ async function migrateLocalToFirebase() {
       }
       await _db.ref('reports/' + id).set(r);
     }
-    showNotif('✅ Reportes migrados a la nube');
+    migratedAny = true;
   }
 
   // Migrar pacientes
   const localPatients = JSON.parse(localStorage.getItem('kardial_patients') || '[]');
-  if (localPatients.length > 0 && _syncCache.patients.length === 0) {
+  if (localPatients.length > 0) {
     console.log('[Sync] Migrando', localPatients.length, 'pacientes locales a Firebase...');
     for (const p of localPatients) {
       await _db.ref('patients').push(p);
     }
-    showNotif('✅ Pacientes migrados a la nube');
+    migratedAny = true;
   }
 
-  // Migrar usuarios
+  // Migrar usuarios (sólo si no hay en firebase ya)
   const localUsers = JSON.parse(localStorage.getItem('kardial_users') || '[]');
   if (localUsers.length > 0 && (!_syncCache.users || _syncCache.users.length === 0)) {
     console.log('[Sync] Migrando usuarios locales a Firebase...');
     await _db.ref('users').set(localUsers);
-    showNotif('✅ Usuarios migrados a la nube');
+    migratedAny = true;
   }
+
+  if (migratedAny) {
+    showNotif('✅ Datos locales antiguos sincronizados a la nube');
+  }
+  
+  localStorage.setItem('kardial_migrated', 'true');
 }
 
 // ---- Registrar callbacks de UI ----
