@@ -161,7 +161,13 @@ async function syncSavePending(data, file) {
 
   if (_firebaseReady) {
     updateSyncIndicator('syncing');
-    await _db.ref('pending/' + id).set(data);
+    try {
+      const cleanData = JSON.parse(JSON.stringify(data));
+      await _db.ref('pending/' + id).set(cleanData);
+    } catch (err) {
+      console.error('[Sync] Error en Firebase:', err);
+      showNotif('❌ Error al guardar: el archivo es muy grande o hay un problema de conexión.', 'error');
+    }
   } else {
     const pending = JSON.parse(localStorage.getItem('kardial_pending') || '[]');
     const idx = pending.findIndex(p => p.id === id);
@@ -198,7 +204,13 @@ async function syncSaveReport(data) {
 
   if (_firebaseReady) {
     updateSyncIndicator('syncing');
-    await _db.ref('reports/' + id).set(data);
+    try {
+      const cleanData = JSON.parse(JSON.stringify(data));
+      await _db.ref('reports/' + id).set(cleanData);
+    } catch (err) {
+      console.error('[Sync] Error en Firebase:', err);
+      showNotif('❌ Error al guardar el informe en la nube.', 'error');
+    }
   } else {
     const saved = JSON.parse(localStorage.getItem('kardial_reports') || '[]');
     saved.unshift(data);
@@ -235,10 +247,15 @@ function syncGetPatients() {
 async function syncSavePatient(patient, idx) {
   if (_firebaseReady) {
     updateSyncIndicator('syncing');
-    if (idx !== null && _syncCache.patients[idx] && _syncCache.patients[idx]._key) {
-      await _db.ref('patients/' + _syncCache.patients[idx]._key).set(patient);
-    } else {
-      await _db.ref('patients').push(patient);
+    try {
+      const cleanData = JSON.parse(JSON.stringify(patient));
+      if (idx !== null && _syncCache.patients[idx] && _syncCache.patients[idx]._key) {
+        await _db.ref('patients/' + _syncCache.patients[idx]._key).set(cleanData);
+      } else {
+        await _db.ref('patients').push(cleanData);
+      }
+    } catch (err) {
+      console.error('[Sync] Error en Firebase:', err);
     }
   } else {
     let saved = JSON.parse(localStorage.getItem('kardial_patients') || '[]');
@@ -276,7 +293,12 @@ function syncGetUsers() {
 async function syncSaveUsers(users) {
   if (_firebaseReady) {
     updateSyncIndicator('syncing');
-    await _db.ref('users').set(users);
+    try {
+      const cleanData = JSON.parse(JSON.stringify(users));
+      await _db.ref('users').set(cleanData);
+    } catch (err) {
+      console.error('[Sync] Error en Firebase:', err);
+    }
   }
   localStorage.setItem('kardial_users', JSON.stringify(users));
 }
