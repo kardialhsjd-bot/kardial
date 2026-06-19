@@ -14,10 +14,9 @@
 //    "Tus apps" → ícono Web (</>) → Registrar app → Copia los valores
 // 5. Pega los valores aquí abajo:
 
+// La URL se leerá de la configuración del usuario en la app
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDummyKeyForTestModeRealtimeDB1234",
-  databaseURL: "https://kardial-6a5da-default-rtdb.firebaseio.com",
-  projectId: "kardial-6a5da"
+  databaseURL: localStorage.getItem('kardial_firebase_url') || "",
 };
 
 // ============================================
@@ -47,9 +46,9 @@ const _syncCallbacks = {
 
 function initFirebaseSync() {
   if (!FIREBASE_CONFIG.databaseURL) {
-    console.warn('[Kardial Sync] ⚠️ Firebase no configurado. Usando localStorage local (sin sincronización entre usuarios).');
+    console.warn('[Kardial Sync] ⚠️ Firebase no configurado.');
     _firebaseReady = false;
-    updateSyncIndicator('offline');
+    updateSyncIndicator('needs_config');
     return false;
   }
 
@@ -360,13 +359,31 @@ function updateSyncIndicator(state) {
   if (state === 'synced') {
     el.innerHTML = '🟢 Sincronizado';
     el.style.color = '#10b981';
+    el.style.cursor = 'default';
+    el.onclick = null;
   } else if (state === 'syncing') {
     el.innerHTML = '🔄 Sincronizando...';
     el.style.color = '#f59e0b';
-    setTimeout(() => updateSyncIndicator('synced'), 1500);
+    el.style.cursor = 'default';
+    el.onclick = null;
+    setTimeout(() => { if(_firebaseReady) updateSyncIndicator('synced'); }, 1500);
+  } else if (state === 'needs_config') {
+    el.innerHTML = '🔴 Nube Desconectada (Clic para configurar)';
+    el.style.color = '#ef4444';
+    el.style.cursor = 'pointer';
+    el.onclick = promptFirebaseConfig;
   } else {
     el.innerHTML = '⚪ Local';
     el.style.color = '#9ca3af';
+  }
+}
+
+function promptFirebaseConfig() {
+  const url = prompt("Para activar la sincronización, pega aquí la URL de tu base de datos de Firebase Realtime Database (ejemplo: https://mi-proyecto-default-rtdb.firebaseio.com):", localStorage.getItem('kardial_firebase_url') || "");
+  if (url !== null && url.trim() !== "") {
+    localStorage.setItem('kardial_firebase_url', url.trim());
+    alert("URL guardada. La página se recargará para aplicar los cambios.");
+    window.location.reload();
   }
 }
 
