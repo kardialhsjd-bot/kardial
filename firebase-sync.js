@@ -15,13 +15,9 @@
 // 5. Pega los valores aquí abajo:
 
 const FIREBASE_CONFIG = {
-  apiKey: "",
-  authDomain: "",
-  databaseURL: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyDummyKeyForTestModeRealtimeDB1234",
+  databaseURL: "https://kardial-6a5da-default-rtdb.firebaseio.com",
+  projectId: "kardial-6a5da"
 };
 
 // ============================================
@@ -50,7 +46,7 @@ const _syncCallbacks = {
 // ---- INICIALIZACIÓN ----
 
 function initFirebaseSync() {
-  if (!FIREBASE_CONFIG.apiKey || !FIREBASE_CONFIG.databaseURL) {
+  if (!FIREBASE_CONFIG.databaseURL) {
     console.warn('[Kardial Sync] ⚠️ Firebase no configurado. Usando localStorage local (sin sincronización entre usuarios).');
     _firebaseReady = false;
     updateSyncIndicator('offline');
