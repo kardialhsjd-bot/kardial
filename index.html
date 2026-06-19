@@ -461,6 +461,80 @@
   </div>
 </main>
 
+  <!-- MODAL ASISTENTE FIREBASE -->
+  <div class="firebase-modal-overlay" id="firebaseModalOverlay">
+    <div class="firebase-modal-card">
+      <div class="card-header" style="padding: 20px 20px 10px; border-bottom: 1px solid var(--border)">
+        <span class="card-title" style="font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">☁️ Sincronización en la Nube</span>
+        <button class="btn btn-outline btn-sm" onclick="closeFirebaseModal()" style="padding: 4px 8px; border-radius: 4px;">×</button>
+      </div>
+      <div class="firebase-tab-nav">
+        <button class="firebase-tab-btn active" id="fbTab0" onclick="switchFirebaseTab(0)">Diagnóstico & Conexión</button>
+        <button class="firebase-tab-btn" id="fbTab1" onclick="switchFirebaseTab(1)">1. Crear Base de Datos</button>
+        <button class="firebase-tab-btn" id="fbTab2" onclick="switchFirebaseTab(2)">2. Configurar Reglas</button>
+      </div>
+      <div class="firebase-modal-body">
+        <!-- Pestaña 0: Diagnóstico -->
+        <div class="firebase-step active" id="fbStep0">
+          <p style="font-size: 13px; color: var(--text-sec); margin-bottom: 16px;">
+            Intentando detectar automáticamente tu base de datos Firebase para el proyecto <b>kardial-6a5da</b>:
+          </p>
+          <div id="diagnoseList" style="margin-bottom: 20px;">
+            <div style="text-align: center; color: var(--text-sec); font-size: 13px; padding: 10px;">Productor de diagnóstico iniciando...</div>
+          </div>
+          <hr style="border: 0; border-top: 1px solid var(--border); margin: 18px 0;"/>
+          <div class="field">
+            <label>URL de Realtime Database</label>
+            <input class="inp" id="inputFbUrl" placeholder="https://tu-proyecto-default-rtdb.firebaseio.com" style="margin-top: 5px; font-family: monospace; font-size: 12px;" />
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 16px;">
+            <button class="btn btn-outline" style="flex: 1" onclick="testCustomFbUrl()">Probar Conexión</button>
+            <button class="btn btn-primary" style="flex: 1" onclick="saveCustomFbUrl()">Guardar y Conectar</button>
+          </div>
+        </div>
+
+        <!-- Pestaña 1: Crear Base de Datos -->
+        <div class="firebase-step" id="fbStep1">
+          <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 12px;">¿Cómo crear la Base de Datos?</h3>
+          <ol style="font-size: 13px; color: var(--text-sec); padding-left: 20px; display: flex; flex-direction: column; gap: 10px;">
+            <li>Ingresa a la consola de Firebase: <a href="https://console.firebase.google.com/project/kardial-6a5da/overview" target="_blank" style="color: var(--accent-light); font-weight: 600; text-decoration: underline;">Consola Proyecto kardial-6a5da</a>.</li>
+            <li>En el menú de la izquierda, haz clic en <b>Realtime Database</b>.</li>
+            <li>Haz clic en el botón <b>Crear base de datos</b> (Create Database).</li>
+            <li>Elige una ubicación (se recomienda <b>Estados Unidos (us-central1)</b> o <b>Bélgica (europe-west1)</b>) y haz clic en Siguiente.</li>
+            <li>Selecciona <b>Iniciar en modo de prueba</b> (esto habilita permisos de lectura y escritura iniciales) y haz clic en <b>Habilitar</b>.</li>
+          </ol>
+          <div style="margin-top: 20px; text-align: center;">
+            <button class="btn btn-primary" onclick="switchFirebaseTab(0)">Volver al Diagnóstico</button>
+          </div>
+        </div>
+
+        <!-- Pestaña 2: Configurar Reglas -->
+        <div class="firebase-step" id="fbStep2">
+          <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 10px;">Configurar Reglas de Acceso (Modo de Prueba)</h3>
+          <p style="font-size: 13px; color: var(--text-sec); margin-bottom: 12px;">
+            Para que los doctores y enfermeras puedan sincronizar datos sin iniciar sesión con Google/Firebase, debes hacer pública la lectura/escritura en tu Realtime Database.
+          </p>
+          <ol style="font-size: 13px; color: var(--text-sec); padding-left: 20px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px;">
+            <li>En la pestaña <b>Realtime Database</b>, haz clic en la pestaña superior <b>Reglas</b> (Rules).</li>
+            <li>Reemplaza todo el contenido por las siguientes reglas públicas:</li>
+          </ol>
+          <div class="firebase-code-block" id="rulesBlock">{
+  "rules": {
+    ".read": true,
+    ".write": true
+  }
+}<button class="firebase-copy-btn" onclick="copyRulesText()">Copiar Código</button></div>
+          <ol start="3" style="font-size: 13px; color: var(--text-sec); padding-left: 20px; display: flex; flex-direction: column; gap: 8px;">
+            <li>Haz clic en el botón <b>Publicar</b> (Publish) en la barra superior de la consola de Firebase.</li>
+          </ol>
+          <div style="margin-top: 20px; text-align: center;">
+            <button class="btn btn-primary" onclick="switchFirebaseTab(0)">Volver al Diagnóstico</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="notif" id="notif"></div>
 
   <!-- LIGHTBOX PARA AMPLIAR IMAGEN/PDF -->

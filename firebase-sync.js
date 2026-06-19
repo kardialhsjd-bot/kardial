@@ -82,6 +82,15 @@ function isFirebaseReady() {
 function _setupListeners() {
   if (!_db) return;
 
+  const handleErr = (err) => {
+    console.error('[Kardial Sync] Error en listener:', err);
+    if (err && (err.code === 'PERMISSION_DENIED' || String(err).includes('PERMISSION_DENIED'))) {
+      updateSyncIndicator('permission_denied');
+    } else {
+      updateSyncIndicator('offline');
+    }
+  };
+
   // Escuchar cambios en /pending
   _db.ref('pending').on('value', (snapshot) => {
     _syncCache.pending = [];
@@ -93,7 +102,7 @@ function _setupListeners() {
     _syncCache.pending.sort((a, b) => (b.id || 0) - (a.id || 0));
     if (_syncCallbacks.pending) _syncCallbacks.pending();
     updateSyncIndicator('synced');
-  });
+  }, handleErr);
 
   // Escuchar cambios en /reports
   _db.ref('reports').on('value', (snapshot) => {
@@ -106,7 +115,7 @@ function _setupListeners() {
     _syncCache.reports.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
     if (_syncCallbacks.reports) _syncCallbacks.reports();
     updateSyncIndicator('synced');
-  });
+  }, handleErr);
 
   // Escuchar cambios en /patients
   _db.ref('patients').on('value', (snapshot) => {
@@ -117,7 +126,7 @@ function _setupListeners() {
       _syncCache.patients.push(item);
     });
     if (_syncCallbacks.patients) _syncCallbacks.patients();
-  });
+  }, handleErr);
 
   // Escuchar cambios en /users
   _db.ref('users').on('value', (snapshot) => {
@@ -130,7 +139,7 @@ function _setupListeners() {
       _syncCache.users = null;
     }
     if (_syncCallbacks.users) _syncCallbacks.users();
-  });
+  }, handleErr);
 }
 
 // ============================================
@@ -356,36 +365,242 @@ function _base64ToFile(base64, name, type) {
 function updateSyncIndicator(state) {
   const el = document.getElementById('syncIndicator');
   if (!el) return;
+  
+  el.style.cursor = 'pointer';
+  el.onclick = () => openFirebaseModal();
+
   if (state === 'synced') {
     el.innerHTML = '🟢 Sincronizado';
     el.style.color = '#10b981';
-    el.style.cursor = 'default';
-    el.onclick = null;
+    el.style.background = 'rgba(16,185,129,0.1)';
   } else if (state === 'syncing') {
     el.innerHTML = '🔄 Sincronizando...';
     el.style.color = '#f59e0b';
-    el.style.cursor = 'default';
-    el.onclick = null;
-    setTimeout(() => { if(_firebaseReady) updateSyncIndicator('synced'); }, 1500);
-  } else if (state === 'needs_config') {
-    el.innerHTML = '🔴 Nube Desconectada (Clic para configurar)';
+    el.style.background = 'rgba(245,158,11,0.1)';
+  } else if (state === 'permission_denied') {
+    el.innerHTML = '🔴 Permisos Bloqueados';
     el.style.color = '#ef4444';
-    el.style.cursor = 'pointer';
-    el.onclick = promptFirebaseConfig;
+    el.style.background = 'rgba(239,68,68,0.1)';
+  } else if (state === 'needs_config') {
+    el.innerHTML = '🔴 Nube Desconectada';
+    el.style.color = '#ef4444';
+    el.style.background = 'rgba(239,68,68,0.1)';
   } else {
     el.innerHTML = '⚪ Local';
     el.style.color = '#9ca3af';
+    el.style.background = 'rgba(156,163,175,0.1)';
   }
 }
 
-function promptFirebaseConfig() {
-  const url = prompt("Para activar la sincronización, pega aquí la URL de tu base de datos de Firebase Realtime Database (ejemplo: https://mi-proyecto-default-rtdb.firebaseio.com):", localStorage.getItem('kardial_firebase_url') || "");
-  if (url !== null && url.trim() !== "") {
-    localStorage.setItem('kardial_firebase_url', url.trim());
-    alert("URL guardada. La página se recargará para aplicar los cambios.");
-    window.location.reload();
+// ============================================
+2. ASISTENTE WIZARD FIREBASE (UI & PROBING)
+// ============================================
+
+function openFirebaseModal() {
+  const modal = document.getElementById('firebaseModalOverlay');
+  if (modal) {
+    modal.classList.add('active');
+    document.getElementById('inputFbUrl').value = localStorage.getItem('kardial_firebase_url') || "";
+    runAutoDiscovery();
   }
 }
+
+function closeFirebaseModal() {
+  const modal = document.getElementById('firebaseModalOverlay');
+  if (modal) modal.classList.remove('active');
+}
+
+function switchFirebaseTab(idx) {
+  for (let i = 0; i < 3; i++) {
+    const btn = document.getElementById(`fbTab${i}`);
+    const step = document.getElementById(`fbStep${i}`);
+    if (btn && step) {
+      if (i === idx) {
+        btn.classList.add('active');
+        step.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+        step.classList.remove('active');
+      }
+    }
+  }
+}
+
+function copyRulesText() {
+  const code = document.getElementById('rulesBlock').innerText.replace("Copiar Código", "").trim();
+  navigator.clipboard.writeText(code).then(() => {
+    alert("¡Código de Reglas copiado al portapapeles!");
+  }).catch(err => {
+    console.error('Error al copiar:', err);
+  });
+}
+
+const DEFAULT_PROJECT_ID = "kardial-6a5da";
+
+async function testFirebaseUrl(url) {
+  url = url.trim().replace(/\/$/, "");
+  if (!url.startsWith("http")) {
+    url = "https://" + url;
+  }
+  try {
+    const res = await fetch(`${url}/.json?shallow=true`, { method: 'GET', mode: 'cors' });
+    if (res.status === 200) {
+      return { ok: true, status: 'connected', url };
+    } else if (res.status === 401) {
+      return { ok: true, status: 'rules_locked', url };
+    } else {
+      return { ok: false, status: 'not_found', url };
+    }
+  } catch (e) {
+    return { ok: false, status: 'error', url };
+  }
+}
+
+async function runAutoDiscovery() {
+  const listEl = document.getElementById('diagnoseList');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="text-align: center; color: var(--text-sec); font-size: 13px; padding: 10px;">Probando servidores Firebase...</div>';
+
+  const regions = [
+    { name: "EE.UU. (us-central1)", url: `https://${DEFAULT_PROJECT_ID}-default-rtdb.firebaseio.com` },
+    { name: "Bélgica (europe-west1)", url: `https://${DEFAULT_PROJECT_ID}-default-rtdb.europe-west1.firebasedatabase.app` },
+    { name: "Singapur (asia-southeast1)", url: `https://${DEFAULT_PROJECT_ID}-default-rtdb.asia-southeast1.firebasedatabase.app` }
+  ];
+
+  let html = "";
+  let anyFound = false;
+
+  for (const region of regions) {
+    const result = await testFirebaseUrl(region.url);
+    let statusHtml = "";
+    if (result.status === 'connected') {
+      statusHtml = '<span class="status-label" style="color: #10b981;">🟢 Activo (Conectado)</span>';
+      anyFound = true;
+      // Auto-guardar si no hay ninguno activo configurado
+      if (!localStorage.getItem('kardial_firebase_url')) {
+        localStorage.setItem('kardial_firebase_url', region.url);
+        FIREBASE_CONFIG.databaseURL = region.url;
+        initFirebaseSync();
+        showNotif("¡Conectado automáticamente a Firebase!");
+        document.getElementById('inputFbUrl').value = region.url;
+      }
+    } else if (result.status === 'rules_locked') {
+      statusHtml = '<span class="status-label" style="color: #fbbf24;">⚠️ Permisos Bloqueados (Clic para ver cómo arreglar)</span>';
+      anyFound = true;
+      if (!localStorage.getItem('kardial_firebase_url')) {
+        localStorage.setItem('kardial_firebase_url', region.url);
+        FIREBASE_CONFIG.databaseURL = region.url;
+        initFirebaseSync();
+        document.getElementById('inputFbUrl').value = region.url;
+      }
+    } else {
+      statusHtml = '<span class="status-label" style="color: #ef4444;">🔴 Inactivo / No Creado</span>';
+    }
+
+    const clickAction = result.status === 'rules_locked' ? 'onclick="switchFirebaseTab(2)" style="cursor:pointer;"' : '';
+
+    html += `
+      <div class="diagnose-item" ${clickAction}>
+        <div>
+          <div style="font-weight: 700; font-size: 13px;">${region.name}</div>
+          <div class="url">${region.url}</div>
+        </div>
+        <div>${statusHtml}</div>
+      </div>
+    `;
+  }
+
+  if (!anyFound) {
+    html += `
+      <div style="margin-top: 14px; padding: 12px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); border-radius: 8px; font-size: 12px; color: #f87171; text-align: left;">
+        <b>⚠️ Base de datos no detectada:</b> No hemos podido detectar tu base de datos Realtime Database. Por favor haz clic en la pestaña <b>"1. Crear Base de Datos"</b> arriba y sigue las instrucciones para crearla en tu consola.
+      </div>
+    `;
+  } else {
+    // Si encontramos una bloqueada
+    const activeUrl = localStorage.getItem('kardial_firebase_url') || "";
+    const activeStatus = await testFirebaseUrl(activeUrl);
+    if (activeStatus.status === 'rules_locked') {
+      html += `
+        <div style="margin-top: 14px; padding: 12px; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); border-radius: 8px; font-size: 12px; color: #fbbf24; text-align: left; cursor: pointer;" onclick="switchFirebaseTab(2)">
+          <b>⚠️ Reglas bloqueadas detectadas:</b> Tu base de datos existe pero Firebase está rechazando los accesos. Haz clic aquí para ver cómo configurar las Reglas en 10 segundos.
+        </div>
+      `;
+    }
+  }
+
+  listEl.innerHTML = html;
+}
+
+async function testCustomFbUrl() {
+  const url = document.getElementById('inputFbUrl').value.trim();
+  if (!url) {
+    alert("Por favor ingresa una URL.");
+    return;
+  }
+  const btn = document.querySelector("#fbStep0 button");
+  const oldText = btn.innerText;
+  btn.innerText = "Probando...";
+  
+  const res = await testFirebaseUrl(url);
+  btn.innerText = oldText;
+
+  if (res.status === 'connected') {
+    alert("¡Conexión Exitosa! La base de datos está activa y tiene permisos correctos.");
+  } else if (res.status === 'rules_locked') {
+    alert("La base de datos existe pero los accesos están bloqueados. Ve a la pestaña '2. Configurar Reglas' para solucionarlo.");
+    switchFirebaseTab(2);
+  } else {
+    alert("No se pudo conectar a la base de datos. Verifica que la URL esté escrita correctamente y que hayas creado la base de datos en la consola.");
+  }
+}
+
+async function saveCustomFbUrl() {
+  const url = document.getElementById('inputFbUrl').value.trim();
+  if (!url) {
+    localStorage.removeItem('kardial_firebase_url');
+    alert("Configuración borrada. Volviendo a modo local.");
+    window.location.reload();
+    return;
+  }
+  
+  localStorage.setItem('kardial_firebase_url', url);
+  alert("Configuración guardada. Recargando la aplicación para iniciar sincronización...");
+  window.location.reload();
+}
+
+async function autoDiscoverOnStartup() {
+  const storedUrl = localStorage.getItem('kardial_firebase_url');
+  if (storedUrl) return; // Ya configurado manualmente
+  
+  const regions = [
+    { url: `https://${DEFAULT_PROJECT_ID}-default-rtdb.firebaseio.com` },
+    { url: `https://${DEFAULT_PROJECT_ID}-default-rtdb.europe-west1.firebasedatabase.app` },
+    { url: `https://${DEFAULT_PROJECT_ID}-default-rtdb.asia-southeast1.firebasedatabase.app` }
+  ];
+
+  for (const region of regions) {
+    try {
+      const res = await fetch(`${region.url}/.json?shallow=true`);
+      if (res.status === 200 || res.status === 401) {
+        console.log('[Kardial Startup Discovery] Found database at:', region.url);
+        localStorage.setItem('kardial_firebase_url', region.url);
+        FIREBASE_CONFIG.databaseURL = region.url;
+        initFirebaseSync();
+        // Si está conectado, migrar datos
+        if (res.status === 200) {
+          setTimeout(() => migrateLocalToFirebase(), 3000);
+        }
+        break;
+      }
+    } catch (e) {
+      // ignore startup errors
+    }
+  }
+}
+
+// Ejecutar al cargar si no está inicializado
+setTimeout(() => autoDiscoverOnStartup(), 1000);
 
 // ---- Migrar datos locales a Firebase ----
 async function migrateLocalToFirebase() {
