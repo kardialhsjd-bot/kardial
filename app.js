@@ -11,11 +11,24 @@ let _totalPages = 1;
 
 // Cargar usuarios de localStorage o usar iniciales si no hay ninguno
 function getStoredUsers() {
+  // Intentar obtener usuarios de Firebase primero
+  const fbUsers = syncGetUsers();
+  if (fbUsers && fbUsers.length > 0) {
+    let changed = false;
+    fbUsers.forEach(u => {
+      if (u.user === 'admin' && u.category === 'tens') {
+        u.category = 'admin';
+        changed = true;
+      }
+    });
+    if (changed) syncSaveUsers(fbUsers);
+    return fbUsers;
+  }
+
   let users = [];
   const stored = localStorage.getItem('kardial_users');
   if (stored) {
     users = JSON.parse(stored);
-    // Migración: Asegurar que el usuario admin tenga la categoría 'admin'
     let changed = false;
     users.forEach(u => {
       if (u.user === 'admin' && u.category === 'tens') {
@@ -36,6 +49,7 @@ function getStoredUsers() {
     { user: 'cardiologo', pass: 'cardio2024', name: 'Dr. Cardiólogo', initials: 'CA', category: 'doctor' }
   ];
   localStorage.setItem('kardial_users', JSON.stringify(defaults));
+  syncSaveUsers(defaults);
   return defaults;
 }
 
@@ -157,7 +171,37 @@ style.textContent = `
 document.head.appendChild(style);
 
 // Ejecutar al cargar
-window.addEventListener('DOMContentLoaded', checkAuth);
+window.addEventListener('DOMContentLoaded', () => {
+  // Inicializar Firebase Sync
+  const fbOk = initFirebaseSync();
+  
+  // Registrar callbacks para actualización en tiempo real
+  registerSyncCallbacks({
+    pending: () => {
+      const screen = document.getElementById('screen-pending');
+      if (screen && screen.classList.contains('active')) loadPending();
+    },
+    reports: () => {
+      const screen = document.getElementById('screen-history');
+      if (screen && screen.classList.contains('active')) loadHistorial();
+    },
+    patients: () => {
+      const screen = document.getElementById('screen-patients');
+      if (screen && screen.classList.contains('active')) loadPatients();
+    },
+    users: () => {
+      const screen = document.getElementById('screen-users');
+      if (screen && screen.classList.contains('active')) loadUsers('all');
+    }
+  });
+
+  // Migrar datos locales a Firebase (si hay)
+  if (fbOk) {
+    setTimeout(() => migrateLocalToFirebase(), 3000);
+  }
+
+  checkAuth();
+});
 
 // ---- STORAGE (IndexedDB para persistir archivos PDF/Imágenes) ----
 const DB_NAME = 'KardialStorage';
@@ -261,24 +305,13 @@ function handleFile(file){
 }
 
 async function saveToPending(data, file) {
-  const pending = JSON.parse(localStorage.getItem('kardial_pending') || '[]');
   const id = data.id || Date.now();
   data.id = id;
-  
-  // Evitar duplicados si ya existe por ID
-  const existsIdx = pending.findIndex(p => p.id === id);
-  if (existsIdx !== -1) {
-    pending[existsIdx] = data;
-  } else {
-    pending.unshift(data);
-  }
-  
-  localStorage.setItem('kardial_pending', JSON.stringify(pending));
-  if (file) await saveExamFile(id, file);
+  await syncSavePending(data, file);
 }
 
 function loadPending() {
-  const pending = JSON.parse(localStorage.getItem('kardial_pending') || '[]');
+  const pending = syncGetPending();
   const screen = document.getElementById('screen-pending');
   if (pending.length === 0) {
     screen.innerHTML = '<div style="padding:60px;text-align:center"><h2 style="margin-bottom:10px">📁 ECG por informar</h2><p style="color:var(--text-sec)">No hay estudios pendientes de informar.</p></div>';
@@ -303,11 +336,11 @@ function loadPending() {
 }
 
 async function processPending(idx) {
-  const pending = JSON.parse(localStorage.getItem('kardial_pending') || '[]');
+  const pending = syncGetPending();
   const p = pending[idx];
   if (!p) return;
   
-  const file = await getExamFile(p.id);
+  const file = await syncGetFile(p.id);
   if (file) {
     window._currentFile = file;
     window._currentPendingId = p.id;
@@ -684,16 +717,21 @@ async function saveReport(){
   // CASO 2: Es un estudio que ya estaba en "ECG por informar"
   if (doctorName && doctorName.trim() !== '') {
     // Si tiene nombre del médico informante, se considera FINALIZADO
-    const saved = JSON.parse(localStorage.getItem('kardial_reports')||'[]');
     data.id = window._currentPendingId;
     
-    saved.unshift(data);
-    localStorage.setItem('kardial_reports', JSON.stringify(saved));
+    // Copiar datos del archivo desde pendiente si existe
+    const pendingList = syncGetPending();
+    const pendingItem = pendingList.find(p => String(p.id) === String(window._currentPendingId));
+    if (pendingItem && pendingItem._fileData) {
+      data._fileData = pendingItem._fileData;
+      data._fileType = pendingItem._fileType;
+      data._fileName = pendingItem._fileName;
+    }
+    
+    await syncSaveReport(data);
     
     // Eliminar de la lista de pendientes
-    let pending = JSON.parse(localStorage.getItem('kardial_pending') || '[]');
-    pending = pending.filter(p => p.id !== window._currentPendingId);
-    localStorage.setItem('kardial_pending', JSON.stringify(pending));
+    await syncDeletePending(window._currentPendingId);
     
     window._currentPendingId = null;
     showNotif('✅ Informe finalizado y movido a "ECG informados"');
@@ -702,7 +740,6 @@ async function saveReport(){
     // Si NO tiene nombre del médico, solo guardamos los cambios en la carpeta de PENDIENTES
     await saveToPending(data, window._currentFile);
     showNotif('✅ Cambios guardados en "ECG por informar"');
-    // En este caso no limpiamos la pantalla, permitimos seguir editando o volver atrás
   }
 }
 
@@ -727,7 +764,7 @@ function gatherData(){
 }
 
 function loadHistorial(){
-  const saved = JSON.parse(localStorage.getItem('kardial_reports')||'[]');
+  const saved = syncGetReports();
   const screen = document.getElementById('screen-history');
   if(saved.length===0){
     screen.innerHTML = '<div style="padding:60px;text-align:center"><h2 style="margin-bottom:10px">📁 Historial de Informes</h2><p style="color:var(--text-sec)">No hay informes guardados aún.</p></div>';
@@ -761,7 +798,7 @@ function loadHistorial(){
 }
 
 async function viewSavedReport(idx){
-  const saved = JSON.parse(localStorage.getItem('kardial_reports')||'[]');
+  const saved = syncGetReports();
   const r = saved[idx]; if(!r) return;
   currentReport = r.mediciones;
   const set = (id,val)=>{ const el=document.getElementById(id); if(el&&val) el.value=val; };
@@ -772,8 +809,8 @@ async function viewSavedReport(idx){
   if(r.ritmo) document.getElementById('ritmo').value=r.ritmo;
   set('rDescripcion',r.descripcion); set('rConclusión',r.conclusion); set('rRecomendaciones',r.recomendaciones);
   
-  // Cargar archivo original desde IndexedDB
-  const file = await getExamFile(r.id);
+  // Cargar archivo original desde Firebase o IndexedDB
+  const file = await syncGetFile(r.id);
   if(file){
     window._currentFile = file;
     renderDocument(file);
@@ -788,15 +825,14 @@ async function viewSavedReport(idx){
   document.getElementById('btnSave').style.display='';
 }
 
-function deleteSavedReport(idx){
-  const saved = JSON.parse(localStorage.getItem('kardial_reports')||'[]');
+async function deleteSavedReport(idx){
   if(!confirm('¿Eliminar este informe?')) return;
   
+  const saved = syncGetReports();
   const r = saved[idx];
   if(r && r.id) deleteExamFile(r.id);
 
-  saved.splice(idx,1);
-  localStorage.setItem('kardial_reports',JSON.stringify(saved));
+  await syncDeleteReport(idx);
   loadHistorial();
   showNotif('🗑 Informe eliminado');
 }
@@ -1049,7 +1085,7 @@ function openPatientModal(idx = null){
   if(fex) fex.value = new Date().toISOString().split('T')[0];
 
   if(idx !== null){
-    const saved = JSON.parse(localStorage.getItem('kardial_patients')||'[]');
+    const saved = syncGetPatients();
     const p = saved[idx];
     title.textContent = 'Editar Paciente';
     document.getElementById('mpNombre').value = p.nombre;
@@ -1071,7 +1107,7 @@ function closePatientModal(){
   if(modal) modal.style.display = 'none';
 }
 
-function savePatient(){
+async function savePatient(){
   const p = {
     nombre: document.getElementById('mpNombre').value,
     rut: document.getElementById('mpRut').value,
@@ -1089,14 +1125,7 @@ function savePatient(){
     return;
   }
 
-  let saved = JSON.parse(localStorage.getItem('kardial_patients')||'[]');
-  if(editingPatientIdx !== null){
-    saved[editingPatientIdx] = p;
-  } else {
-    saved.push(p);
-  }
-
-  localStorage.setItem('kardial_patients', JSON.stringify(saved));
+  await syncSavePatient(p, editingPatientIdx);
   closePatientModal();
   loadPatients();
   showNotif('✅ Paciente guardado correctamente');
@@ -1107,7 +1136,7 @@ function loadPatients(){
   const query = document.getElementById('searchPatient').value.toLowerCase();
   const sexFilter = document.getElementById('filterSex').value;
   
-  let saved = JSON.parse(localStorage.getItem('kardial_patients')||'[]');
+  let saved = syncGetPatients();
   
   saved = saved.filter(p => {
     const n = (p.nombre||'').toLowerCase();
@@ -1141,16 +1170,14 @@ function loadPatients(){
     `).join('') + '</div>';
 }
 
-function deletePatient(idx){
+async function deletePatient(idx){
   if(!confirm('¿Eliminar este paciente de la base de datos?')) return;
-  let saved = JSON.parse(localStorage.getItem('kardial_patients')||'[]');
-  saved.splice(idx, 1);
-  localStorage.setItem('kardial_patients', JSON.stringify(saved));
+  await syncDeletePatient(idx);
   loadPatients();
 }
 
 function startReportForPatient(idx){
-  const saved = JSON.parse(localStorage.getItem('kardial_patients')||'[]');
+  const saved = syncGetPatients();
   const p = saved[idx];
   
   newReport();
@@ -1196,7 +1223,7 @@ function closeUserModal() {
   document.getElementById('userModal').style.display = 'none';
 }
 
-function saveUser() {
+async function saveUser() {
   const name = document.getElementById('uNombre').value.trim();
   const login = document.getElementById('uLogin').value.trim().toLowerCase();
   const pass = document.getElementById('uPass').value.trim();
@@ -1229,7 +1256,7 @@ function saveUser() {
     users.push(newUser);
   }
 
-  localStorage.setItem('kardial_users', JSON.stringify(users));
+  await syncSaveUsers(users);
   closeUserModal();
   loadUsers('all');
   showNotif('✅ Usuario guardado correctamente');
@@ -1284,7 +1311,7 @@ function loadUsers(filter = 'all') {
   list.innerHTML = html;
 }
 
-function deleteUser(idx) {
+async function deleteUser(idx) {
   const users = getStoredUsers();
   const u = users[idx];
   
@@ -1295,7 +1322,7 @@ function deleteUser(idx) {
 
   if (confirm(`¿Está seguro de eliminar al usuario ${u.name}?`)) {
     users.splice(idx, 1);
-    localStorage.setItem('kardial_users', JSON.stringify(users));
+    await syncSaveUsers(users);
     loadUsers('all');
     showNotif('🗑️ Usuario eliminado');
   }
@@ -1336,8 +1363,8 @@ function loadStats() {
   const month = parseInt(document.getElementById('statsMonth').value);
   const year = parseInt(document.getElementById('statsYear').value);
   
-  const pending = JSON.parse(localStorage.getItem('kardial_pending') || '[]');
-  const reports = JSON.parse(localStorage.getItem('kardial_reports') || '[]');
+  const pending = syncGetPending();
+  const reports = syncGetReports();
   
   // Filtrar por Mes/Año (Mensual)
   const filterByDate = (list) => list.filter(item => {

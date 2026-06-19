@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>KARDIAL – Informes de Electrocardiograma</title>
 <link rel="stylesheet" href="style.css"/>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
@@ -81,7 +83,7 @@
       <h1 class="page-title" id="pageTitle">Nuevo Informe ECG</h1>
     </div>
     <div class="topbar-right">
-      <span style="font-size:12px;color:var(--text-sec)">🟢 En línea</span>
+      <span id="syncIndicator" style="font-size:11px;color:#10b981;font-weight:600;padding:4px 10px;background:rgba(16,185,129,0.1);border-radius:20px;transition:all 0.3s">🟢 Sincronizado</span>
       <button class="btn btn-outline btn-sm" id="btnPreview" onclick="printReport()" style="display:none">🖨 Imprimir</button>
       <button class="btn btn-primary btn-sm" id="btnSave" onclick="saveReport()" style="display:none">💾 Guardar</button>
     </div>
@@ -469,6 +471,7 @@
     </div>
   </div>
 
+  <script src="firebase-sync.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
