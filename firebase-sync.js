@@ -16,7 +16,8 @@
 
 // La URL se leerá de la configuración del usuario en la app
 const FIREBASE_CONFIG = {
-  databaseURL: localStorage.getItem('kardial_firebase_url') || "",
+  // URL fija para que todos los usuarios se conecten automáticamente
+  databaseURL: "https://kardial-6a5da-default-rtdb.firebaseio.com"
 };
 
 // ============================================
