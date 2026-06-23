@@ -393,7 +393,7 @@ function updateSyncIndicator(state) {
 }
 
 // ============================================
-2. ASISTENTE WIZARD FIREBASE (UI & PROBING)
+// 2. ASISTENTE WIZARD FIREBASE (UI & PROBING)
 // ============================================
 
 function openFirebaseModal() {
